@@ -5,7 +5,6 @@ from pydantic import BaseModel, EmailStr, Field
 
 class GoogleAuth(BaseModel):
     idToken: str
-    email: Optional[str | None]
 
 
 class Signup(BaseModel):

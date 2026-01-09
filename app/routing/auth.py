@@ -2,6 +2,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.responses import JSONResponse
+from firebase_admin.auth import verify_id_token
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 from starlette.status import HTTP_200_OK
@@ -27,7 +28,7 @@ def signup(request: Request, body: Signup, db: Annotated[Session, Depends(get_db
         if existingUser:
             return JSONResponse(
                 {"message": "User email is already exits"},
-                status_code=status.HTTP_302_FOUND,
+                status_code=status.HTTP_409_CONFLICT,
             )
         # user_agent_str = request.headers.get("user-agent", "")
         # user_agent = parse(user_agent_str)
@@ -37,10 +38,10 @@ def signup(request: Request, body: Signup, db: Annotated[Session, Depends(get_db
             auth_provider=AuthProvider.EMAIL,
             # user_device=user_agent,
         )
-        tokens = create_token(str(new_user.id))
         db.add(new_user)
         db.commit()
         db.refresh(new_user)
+        tokens = create_token(str(new_user.id))
         return JSONResponse(
             content={
                 "message": "Successfully user created",
@@ -108,6 +109,35 @@ def login(body: SignIn, db: Annotated[Session, Depends(get_db)]):
         )
 
 
-# @router.post("/google")
-# def google_auth(body:GoogleAuth,db:Annotated[Session,Depends(get_db)]):
-#     try:
+@router.post("/google")
+def google_auth(body: GoogleAuth, db: Annotated[Session, Depends(get_db)]):
+    try:
+        payload_from_firebase = verify_id_token(body.idToken)
+        print(
+            f"firebase user data: {payload_from_firebase}",
+        )
+        email = payload_from_firebase.get("email")
+        if not email:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Email not available from Google account",
+            )
+        user = db.query(Users).filter(Users.email == email).first()
+        if not user:
+            user = Users(
+                email=email,
+            )
+            db.add(user)
+            db.commit()
+            db.refresh(user)
+        tokens = create_token(str(user.id))
+        return JSONResponse(
+            {"message": "Google login successful", "token": tokens.model_dump()},
+            status_code=status.HTTP_200_OK,
+        )
+
+    except Exception:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Google login failed",
+        )

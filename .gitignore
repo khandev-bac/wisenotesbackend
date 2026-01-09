@@ -1,2 +1,2 @@
 .env
-./app/config/config_file
+./app/config/config_file/wisenotes_backend.json
