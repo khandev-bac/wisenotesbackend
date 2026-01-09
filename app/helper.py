@@ -4,7 +4,7 @@ import jwt
 from passlib.context import CryptContext
 
 from app.config.app_config import getAppConfig
-from app.models.token import Tokens
+from app.models.token import TokenReturnValue, Tokens
 
 hasher = CryptContext(schemes=["argon2"])
 
@@ -41,9 +41,15 @@ def create_token(user_id: str) -> Tokens:
     return Tokens(access_token=access_token, refresh_token=refresh_token)
 
 
-def verify_access_token(access_token: str) -> dict:
-    return jwt.decode(access_token, app_config.access_token_key, algorithms="HS256")
+def verify_access_token(access_token: str) -> TokenReturnValue:
+    decoded_value = jwt.decode(
+        access_token, app_config.access_token_key, algorithms="HS256"
+    )
+    return TokenReturnValue(user_id=decoded_value["user_id"])
 
 
-def verify_refresh_token(refresh_token: str) -> dict:
-    return jwt.decode(refresh_token, app_config.refresh_token_key, algorithms="HS256")
+def verify_refresh_token(refresh_token: str) -> TokenReturnValue:
+    decoded_value = jwt.decode(
+        refresh_token, app_config.refresh_token_key, algorithms="HS256"
+    )
+    return TokenReturnValue(user_id=decoded_value["user_id"])

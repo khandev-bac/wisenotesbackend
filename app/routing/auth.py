@@ -1,3 +1,4 @@
+import uuid
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
@@ -5,13 +6,18 @@ from fastapi.responses import JSONResponse
 from firebase_admin.auth import verify_id_token
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
-from starlette.status import HTTP_200_OK
 from user_agents import parse
 
 from app.database.db import get_db
 from app.database.schema.user_schema import AuthProvider, Users
-from app.helper import create_token, hash_password, verify_hash_password
-from app.models.auth_model import GoogleAuth, SignIn, Signup
+from app.helper import (
+    create_token,
+    hash_password,
+    verify_access_token,
+    verify_hash_password,
+    verify_refresh_token,
+)
+from app.models.auth_model import GoogleAuth, RefreshTokenBody, SignIn, Signup
 
 router = APIRouter(prefix="/auth")
 
@@ -126,6 +132,9 @@ def google_auth(body: GoogleAuth, db: Annotated[Session, Depends(get_db)]):
         if not user:
             user = Users(
                 email=email,
+                google_id=payload_from_firebase["uid"],
+                auth_provider="google",
+                profile_img=payload_from_firebase.get("picture"),
             )
             db.add(user)
             db.commit()
@@ -141,3 +150,41 @@ def google_auth(body: GoogleAuth, db: Annotated[Session, Depends(get_db)]):
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Google login failed",
         )
+
+
+@router.post("/refresh")
+def refresh_token(body: RefreshTokenBody, db: Annotated[Session, Depends(get_db)]):
+    try:
+        decode_refresh_token = verify_refresh_token(refresh_token=body.refresh_token)
+        if not decode_refresh_token:
+            return JSONResponse(
+                {"message": "refreshed failed"},
+                status_code=status.HTTP_401_UNAUTHORIZED,
+            )
+        user_id = decode_refresh_token.user_id
+        tokens = create_token(user_id)
+        return JSONResponse(
+            {"message": "ok", "tokens": tokens.model_dump()},
+            status_code=status.HTTP_200_OK,
+        )
+    except Exception as e:
+        print(f"failed to get new tokens: {e}")
+        return JSONResponse(
+            {
+                "message": "failed",
+            },
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )
+
+
+@router.get("/test")
+def testToken():
+    userid = uuid.uuid4()
+    tokens = create_token(str(userid))
+    refreshtoken = tokens.refresh_token
+    verified_ref = verify_refresh_token(refreshtoken)
+    return {
+        "user_id": str(userid),
+        "access_token": refreshtoken,
+        "verified_user_id": verified_ref.user_id,
+    }
