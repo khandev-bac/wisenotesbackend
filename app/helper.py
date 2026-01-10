@@ -69,6 +69,7 @@ async def get_current_user(req: Request):
         payload = verify_access_token(token)
         return payload.user_id
     except Exception as e:
+        print(f"error in geT_current_user: {e}")
         return JSONResponse(
             {"message": "failed to authenticate"},
             status_code=status.HTTP_401_UNAUTHORIZED,

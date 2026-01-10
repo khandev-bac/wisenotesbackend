@@ -42,8 +42,12 @@ def run_migrations_offline() -> None:
 
     """
     app_config = getAppConfig()
-
-    url = config.get_main_option("sqlalchemy.url", default=app_config.db_url)
+    app_db = ""
+    if app_config.app_env == "development":
+        app_db = app_config.db_dev
+    else:
+        app_db = app_config.db_url
+    url = config.get_main_option("sqlalchemy.url", default=app_db)
     context.configure(
         url=url,
         target_metadata=target_metadata,
@@ -63,8 +67,13 @@ def run_migrations_online() -> None:
 
     """
     app_config = getAppConfig()
+    app_db = ""
+    if app_config.app_env == "development":
+        app_db = app_config.db_dev
+    else:
+        app_db = app_config.db_url
     configration = config.get_section(config.config_ini_section, {})
-    configration["sqlalchemy.url"] = app_config.db_url
+    configration["sqlalchemy.url"] = app_db
     connectable = engine_from_config(
         configration,
         prefix="sqlalchemy.",

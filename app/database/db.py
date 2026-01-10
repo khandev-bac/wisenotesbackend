@@ -1,4 +1,4 @@
-from typing import Generator
+from typing import Generator, Optional
 
 from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declarative_base
@@ -8,7 +8,12 @@ from app.config.app_config import getAppConfig
 
 Base = declarative_base()
 config = getAppConfig()
-engine = create_engine(config.db_url)
+db_url:Optional[str] = (
+    config.db_dev
+    if config.app_env == "development"
+    else config.db_url
+)
+engine = create_engine(db_url)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 

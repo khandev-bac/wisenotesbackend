@@ -37,13 +37,13 @@ def signup(request: Request, body: Signup, db: Annotated[Session, Depends(get_db
                 {"message": "User email is already exits"},
                 status_code=status.HTTP_409_CONFLICT,
             )
-        # user_agent_str = request.headers.get("user-agent", "")
+        user_agent_str = request.headers.get("user-agent")
         # user_agent = parse(user_agent_str)
         new_user = Users(
             email=body.email,
             password=hash_password(body.password),
             auth_provider=AuthProvider.EMAIL,
-            # user_device=user_agent,
+            user_device=user_agent_str,
         )
         db.add(new_user)
         db.commit()
@@ -65,14 +65,18 @@ def signup(request: Request, body: Signup, db: Annotated[Session, Depends(get_db
         )
     except SQLAlchemyError as e:
         db.rollback()
+        print(f"error in signup_db: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Database error occurred",
         )
     except Exception as e:
-        raise HTTPException(
+        print(f"error in signup: {e}")
+        return JSONResponse(
+            {
+                "message": "Failed to signup",
+            },
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to create user {e}",
         )
 
 
@@ -104,15 +108,19 @@ def login(body: SignIn, db: Annotated[Session, Depends(get_db)]):
                     "email": existingUser.email,
                     "auth_provider": existingUser.auth_provider.value,
                     "plan": existingUser.plan.value,
+                    "user_agent":existingUser.user_device,
                     "created_at": existingUser.created_at.isoformat(),
                 },
             },
             status_code=status.HTTP_200_OK,
         )
     except Exception as e:
-        raise HTTPException(
+        print(f"error in login: {e}")
+        return JSONResponse(
+            {
+                "message": "Failed to login",
+            },
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to login {e}",
         )
 
 
@@ -146,10 +154,13 @@ def google_auth(body: GoogleAuth, db: Annotated[Session, Depends(get_db)]):
             status_code=status.HTTP_200_OK,
         )
 
-    except Exception:
-        raise HTTPException(
+    except Exception as e:
+        print(f"error in google_auth: {e}")
+        return JSONResponse(
+            {
+                "message": "Google login failed",
+            },
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Google login failed",
         )
 
 
@@ -185,8 +196,34 @@ async def me(
 ):
     try:
         user = db.query(Users).filter(Users.id == user_id).first()
-        return JSONResponse({"message": "user data"}, status_code=status.HTTP_200_OK)
+        if not user:
+            return JSONResponse(
+                {
+                    "message": "no user found",
+                },
+                status_code=status.HTTP_404_NOT_FOUND,
+            )
+
+        print(f"user:= {user.id, user.email}")
+        return JSONResponse(
+            {
+                "message": "user data",
+                "user": {
+                    "user_id": str(user.id),
+                    "email": user.email,
+                    "auth_provider": user.auth_provider.value,
+                    "plan": user.plan.value,
+                    "google_id": user.google_id,
+                    "profile_img": user.profile_img,
+                    "is_active": user.is_active,
+                    "user_agent":user.user_device,
+                    "created_at": user.created_at.isoformat(),
+                },
+            },
+            status_code=status.HTTP_200_OK,
+        )
     except Exception as e:
+        print(f"error in user_info: {e}")
         return JSONResponse(
             {"message": "failed to get user data"},
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -194,13 +231,16 @@ async def me(
 
 
 @router.get("/test")
-def testToken():
+def testToken(req:Request):
     userid = uuid.uuid4()
     tokens = create_token(str(userid))
     refreshtoken = tokens.refresh_token
     verified_ref = verify_refresh_token(refreshtoken)
+    user_agent = req.headers.get("user-agent")
+    print(f"user_agent: {user_agent} and typeof {type( user_agent)}")
     return {
         "user_id": str(userid),
         "access_token": refreshtoken,
         "verified_user_id": verified_ref.user_id,
+        "user_agent":user_agent
     }
