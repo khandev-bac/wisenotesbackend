@@ -12,6 +12,7 @@ from app.database.db import get_db
 from app.database.schema.user_schema import AuthProvider, Users
 from app.helper import (
     create_token,
+    get_current_user,
     hash_password,
     verify_access_token,
     verify_hash_password,
@@ -173,6 +174,21 @@ def refresh_token(body: RefreshTokenBody, db: Annotated[Session, Depends(get_db)
             {
                 "message": "failed",
             },
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )
+
+
+@router.get("/me")
+async def me(
+    user_id: Annotated[str, Depends(get_current_user)],
+    db: Annotated[Session, Depends(get_db)],
+):
+    try:
+        user = db.query(Users).filter(Users.id == user_id).first()
+        return JSONResponse({"message": "user data"}, status_code=status.HTTP_200_OK)
+    except Exception as e:
+        return JSONResponse(
+            {"message": "failed to get user data"},
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
         )
 

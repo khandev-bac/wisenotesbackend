@@ -1,6 +1,8 @@
 from datetime import datetime, timedelta, timezone
 
 import jwt
+from fastapi import Request, status
+from fastapi.responses import JSONResponse
 from passlib.context import CryptContext
 
 from app.config.app_config import getAppConfig
@@ -53,3 +55,21 @@ def verify_refresh_token(refresh_token: str) -> TokenReturnValue:
         refresh_token, app_config.refresh_token_key, algorithms="HS256"
     )
     return TokenReturnValue(user_id=decoded_value["user_id"])
+
+
+async def get_current_user(req: Request):
+    try:
+        auth_header = req.headers.get("Authorization")
+        if not auth_header:
+            return JSONResponse(
+                {"message": "failed to authenticate"},
+                status_code=status.HTTP_401_UNAUTHORIZED,
+            )
+        token = auth_header.split(" ")[1]
+        payload = verify_access_token(token)
+        return payload.user_id
+    except Exception as e:
+        return JSONResponse(
+            {"message": "failed to authenticate"},
+            status_code=status.HTTP_401_UNAUTHORIZED,
+        )
