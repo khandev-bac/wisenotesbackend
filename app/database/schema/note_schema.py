@@ -28,7 +28,7 @@ class Notes(Base):
         ForeignKey("users.id"),
         nullable=False
     )
-    title:Mapped[uuid.UUID] = mapped_column(
+    title:Mapped[str] = mapped_column(
         String,
         nullable=False
     )
@@ -56,4 +56,4 @@ class Notes(Base):
         nullable=False
     )
     user = relationship("Users",back_populates="notes")
-    source = relationship("sources",back_populates="notes")
+    source = relationship("Sources",back_populates="notes")

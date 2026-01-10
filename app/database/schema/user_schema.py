@@ -19,11 +19,6 @@ class Plan(enum.Enum):
     PRO = "pro"
 
 
-class Type(enum.Enum):
-    AUDIO = "audio"
-    YOUTUBE = "youtube"
-    DOCUMENTS = "documents"
-
 
 class Users(Base):
     __tablename__ = "users"
