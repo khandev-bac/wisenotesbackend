@@ -1,7 +1,7 @@
 from fastapi import APIRouter, FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse
 
-from app.routing import auth, user
+from app.routing import auth, note, user
 
 app = FastAPI()
 
@@ -17,6 +17,7 @@ async def http_exception_handler(request: Request, exc: HTTPException):
 app_v1 = APIRouter(prefix="/v1/api")
 app_v1.include_router(auth.router)
 app_v1.include_router(user.router)
+app_v1.include_router(note.router)
 
 
 @app_v1.get("/", tags=["root"])

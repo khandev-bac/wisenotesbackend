@@ -1,0 +1,35 @@
+services:
+  postgres:
+    container_name: wisenotes_database
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: wisenotes_db
+      POSTGRES_USER: wisenotes
+      POSTGRES_PASSWORD: wisenotes
+    ports:
+      - "5432:5432"
+    volumes:
+      - wisenotes_data:/var/lib/postgresql/data
+
+  redis:
+    container_name: wisenotes_redis
+    image: redis:8.4.0-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - wisenotes_redis:/data
+
+  rabbitmq:
+    container_name: wisenotes_rabbitmq
+    image: rabbitmq:4.2.2-alpine
+    ports:
+      - "5672:5672"
+    environment:
+      RABBITMQ_DEFAULT_PASS: wisenotes
+      RABBITMQ_DEFAULT_USER: wisenotes
+    volumes:
+      - rabbitmq_rabbitmq:/var/lib/rabbitmq
+volumes:
+  wisenotes_data:
+  wisenotes_redis:
+  rabbitmq_rabbitmq:

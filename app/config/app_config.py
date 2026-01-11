@@ -11,7 +11,9 @@ class AppConfig(BaseSettings):
     refresh_token_key: str = ""
     access_token_expire_time: str = ""
     refresh_token_expire_time: str = ""
-    db_dev:str = ""
+    db_dev: str = ""
+    imagekit_private_key: str = ""
+    imagekit_url_endpoint: str = ""
     model_config = SettingsConfigDict(env_file=".env")
 
 
