@@ -1,11 +1,14 @@
+import uuid
 from datetime import datetime, timedelta, timezone
 
 import jwt
-from fastapi import Request, status
+from fastapi import Request, UploadFile, status
+from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import JSONResponse
 from passlib.context import CryptContext
 
 from app.config.app_config import getAppConfig
+from app.config.imagekit_config import URL_ENDPOINT, imagekit
 from app.models.token import TokenReturnValue, Tokens
 
 hasher = CryptContext(schemes=["argon2"])
@@ -74,3 +77,16 @@ async def get_current_user(req: Request):
             {"message": "failed to authenticate"},
             status_code=status.HTTP_401_UNAUTHORIZED,
         )
+
+
+async def upload_file_to_imagekit(files: UploadFile):
+    filename = f"{uuid.uuid4()}{files.filename}"
+
+    def _upload():
+        return imagekit.files.upload(file=files.file, file_name=filename)
+
+    try:
+        result = await run_in_threadpool(_upload)
+        return result
+    except Exception as e:
+        print(f"uploading to imagekit failed {e}")
