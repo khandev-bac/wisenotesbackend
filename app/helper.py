@@ -1,8 +1,10 @@
 import uuid
 from datetime import datetime, timedelta, timezone
+from urllib.parse import parse_qs, urlparse
+from uuid import UUID
 
 import jwt
-from fastapi import Request, UploadFile, status
+from fastapi import HTTPException, Request, UploadFile, status
 from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import JSONResponse
 from passlib.context import CryptContext
@@ -60,22 +62,32 @@ def verify_refresh_token(refresh_token: str) -> TokenReturnValue:
     return TokenReturnValue(user_id=decoded_value["user_id"])
 
 
-async def get_current_user(req: Request):
-    try:
-        auth_header = req.headers.get("Authorization")
-        if not auth_header:
-            return JSONResponse(
-                {"message": "failed to authenticate"},
-                status_code=status.HTTP_401_UNAUTHORIZED,
-            )
-        token = auth_header.split(" ")[1]
-        payload = verify_access_token(token)
-        return payload.user_id
-    except Exception as e:
-        print(f"error in geT_current_user: {e}")
-        return JSONResponse(
-            {"message": "failed to authenticate"},
+async def get_current_user(req: Request) -> UUID:
+    auth_header = req.headers.get("Authorization")
+
+    if not auth_header:
+        raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Missing Authorization header",
+        )
+
+    try:
+        scheme, token = auth_header.split(" ")
+        if scheme.lower() != "bearer":
+            raise ValueError("Invalid auth scheme")
+
+        payload = verify_access_token(token)
+
+        if not payload or not payload.user_id:
+            raise ValueError("Invalid token payload")
+
+        return UUID(payload.user_id)
+
+    except Exception as e:
+        print(f"error in get_current_user: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Failed to authenticate",
         )
 
 
@@ -90,3 +102,23 @@ async def upload_file_to_imagekit(files: UploadFile):
         return result
     except Exception as e:
         print(f"uploading to imagekit failed {e}")
+        raise
+
+
+def extract_youtube_video_id(url: str) -> str | None:
+    parsed = urlparse(url)
+
+    # youtu.be/VIDEO_ID
+    if parsed.netloc in ("youtu.be", "www.youtu.be"):
+        return parsed.path.lstrip("/")
+
+    # youtube.com/watch?v=VIDEO_ID
+    if parsed.netloc in ("youtube.com", "www.youtube.com"):
+        if parsed.path == "/watch":
+            return parse_qs(parsed.query).get("v", [None])[0]
+        if parsed.path.startswith("/shorts/"):
+            return parsed.path.split("/")[2]
+        if parsed.path.startswith("/embed/"):
+            return parsed.path.split("/")[2]
+
+    return None
