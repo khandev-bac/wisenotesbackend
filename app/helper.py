@@ -1,9 +1,12 @@
+import tempfile
 import uuid
 from datetime import datetime, timedelta, timezone
+from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 from uuid import UUID
 
 import jwt
+import requests
 from fastapi import HTTPException, Request, UploadFile, status
 from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import JSONResponse
@@ -122,3 +125,13 @@ def extract_youtube_video_id(url: str) -> str | None:
             return parsed.path.split("/")[2]
 
     return None
+
+
+def download_file(url: str) -> Path:
+    response = requests.get(url, timeout=60)
+    response.raise_for_status()
+    suffix = Path(url).suffix or ".tmp"
+    temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=suffix)
+    temp_file.write(response.content)
+    temp_file.close()
+    return Path(temp_file.name)

@@ -15,6 +15,7 @@ class AppConfig(BaseSettings):
     imagekit_private_key: str = ""
     imagekit_url_endpoint: str = ""
     gemini_api_key: str = ""
+    gemini_embedding_model: str = ""
     model_config = SettingsConfigDict(env_file=".env")
 
 

@@ -6,6 +6,7 @@ from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 from starlette.status import HTTP_400_BAD_REQUEST, HTTP_500_INTERNAL_SERVER_ERROR
 
+from app.backgroundjob.tasks import example_task
 from app.database.db import get_db
 from app.database.schema.job_schema import Jobs, JobStatusEnum, JobTypeEnum
 from app.database.schema.source_schema import Sources, SourceTypeEnum
@@ -21,13 +22,19 @@ router = APIRouter(prefix="/note")
 MAX_AUDIO_FILE_SIZE = 25 * 1024 * 1024
 
 
-@router.get("/")
-async def health():
-    return {
-        "message": "note endpoint is ok",
-        "status_code": 200,
-        "max_size": MAX_AUDIO_FILE_SIZE,
-    }
+@router.post("/")
+def health(content_id: str):
+    try:
+        job = example_task.delay(content_id)  # type: ignore[attr-defined]
+
+        return {
+            "message": "note endpoint is ok",
+            "job_id": job.id,
+            "status_code": 200,
+            "max_size": MAX_AUDIO_FILE_SIZE,
+        }
+    except Exception as e:
+        print(f"error in /: {e}")
 
 
 @router.post("/audio")
